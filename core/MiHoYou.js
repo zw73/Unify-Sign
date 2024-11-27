@@ -38,7 +38,7 @@ function SignRunner () {
         x: yuanshen.bounds().centerX(),
         y: yuanshen.bounds().centerY()
       }, '找到了原神按钮')
-      automator.clickCenter(yuanshen)
+      automator.clickRandom(yuanshen)
       sleep(1000)
       signWidget = widgetUtils.widgetGetOne('签到福利')
     }
@@ -47,7 +47,7 @@ function SignRunner () {
         x: signWidget.bounds().centerX(),
         y: signWidget.bounds().centerY()
       }, '找到了签到福利按钮')
-      automator.clickCenter(signWidget)
+      automator.clickRandom(signWidget)
       sleep(3000)
       let regex = /第\s*(\d+)\s*天/
       if (widgetUtils.widgetWaiting('.*签到提醒.*')) {
@@ -56,7 +56,7 @@ function SignRunner () {
         let signBtn = selector().filter(node => node && node.indexInParent() == 0 && node.depth() == 14 && node.clickable() == false && node.className() == 'android.widget.Image').findOne(config.timeout_findOne)
         if (this.displayButton(signBtn, '签到按钮')) {
           sleep(1000)
-          automator.click(signBtn.bounds().left, signBtn.bounds().bottom)
+          automator.clickPointRandom(signBtn.bounds().left, signBtn.bounds().bottom)
           FloatyInstance.setFloatyText('签到成功')
           this.setExecuted()
         } else {
@@ -72,7 +72,7 @@ function SignRunner () {
                 y: point.y
               }, '准备签到')
               sleep(1000)
-              automator.click(point.x, point.y)
+              automator.clickPointRandom(point.x, point.y)
             } else {
               FloatyInstance.setFloatyText('未找到签到按钮，可能已经签到了')
               sleep(1000)

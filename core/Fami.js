@@ -21,7 +21,7 @@ function SignRunner () {
       }, '找到了关闭按钮')
       sleep(500)
       FloatyInstance.setFloatyText('点击关闭')
-      automator.clickCenter(closeButton)
+      automator.clickRandom(closeButton)
       sleep(500)
       closeButton = widgetUtils.widgetGetById('com.x2era.xcloud.app:id/iv_(close|cancel)', 1000)
     }
@@ -33,7 +33,7 @@ function SignRunner () {
       }, '签到')
       sleep(500)
       FloatyInstance.setFloatyText('点击进入')
-      automator.clickCenter(signButton)
+      automator.clickRandom(signButton)
       sleep(1500)
       let relogin = widgetUtils.widgetGetById('.*cb_checkbox_onekey', 2000)
       if (relogin) {
@@ -41,7 +41,7 @@ function SignRunner () {
           x: relogin.bounds().centerX(),
           y: relogin.bounds().centerY()
         }, '找到了重新登录checkbox')
-        automator.clickCenter(relogin)
+        automator.clickRandom(relogin)
         sleep(500)
         relogin = widgetUtils.widgetGetOne('一键登录', 1000)
         if (relogin) {
@@ -49,7 +49,7 @@ function SignRunner () {
             x: relogin.bounds().centerX(),
             y: relogin.bounds().centerY()
           }, '找到了一键登录按钮')
-          automator.clickCenter(relogin)
+          automator.clickRandom(relogin)
           sleep(1000)
         }
       }
@@ -70,7 +70,7 @@ function SignRunner () {
             y: doSignButton.bounds().centerY()
           }, '找到了签到按钮，点击')
           sleep(500)
-          automator.clickCenter(doSignButton)
+          automator.clickRandom(doSignButton)
           let regex = /恭喜您获得(\d+)个发米粒/
           let success = widgetUtils.alternativeWidget(regex, '签到成功', null, true)
           if (success.value > 0) {
@@ -93,7 +93,7 @@ function SignRunner () {
             sleep(500)
             FloatyInstance.setFloatyText('点击关闭')
             sleep(500)
-            automator.clickCenter(closeButton)
+            automator.clickRandom(closeButton)
           }
           this.setExecuted()
         } else {

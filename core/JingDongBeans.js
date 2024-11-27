@@ -135,7 +135,7 @@ function BeanCollector () {
         clicked = true
       } else {
         this.pushLog('未找到签到按钮 使用坐标点击')
-        automator.click(jingdongConfig.sign_posi_x, jingdongConfig.sign_posi_y)
+        automator.clickPointRandom(jingdongConfig.sign_posi_x, jingdongConfig.sign_posi_y)
         clicked = true
       }
     }
@@ -184,7 +184,7 @@ function BeanCollector () {
       let target = selector().boundsInside(config.device_width/2, config.device_height/2, config.device_width, config.device_height).textMatches('\\+\\d+').findOne(1000)
       if (target) {
         logUtils.debugInfo(['找到 +5 领取按钮: {}', { x: target.bounds().centerX(), y: target.bounds().centerY()}])
-        automator.clickCenter(target)
+        automator.clickRandom(target)
       }
     }
     
@@ -205,7 +205,7 @@ function BeanCollector () {
       logUtils.debugInfo(['找到可浏览商品数：{} 当前已浏览：{}', goodsList.length, browsedIdx])
       this.pushLog('找到可浏览商品数'+goodsList.length+'当前浏览数：'+browsedIdx)
       if (browsedIdx < goodsList.length - 1) {
-        goodsList[browsedIdx].click()
+        automator.clickRandom(goodsList[browsedIdx])
         sleep(3000)
         automator.back()
         this.doBrowserGoods(browsedIdx + 1)
@@ -244,7 +244,7 @@ function BeanCollector () {
       } else {
         this.pushLog('未能通过坐标方式找到种豆得豆入口，使用坐标点击')
         FloatyInstance.setFloatyInfo(entryPoint, '种豆得豆入口')
-        automator.click(entryPoint.x, entryPoint.y)
+        automator.clickPointRandom(entryPoint.x, entryPoint.y)
       }
     }
 
@@ -370,7 +370,7 @@ function BeanCollector () {
   this.closePopup = function () {
     let okBtn = widgetUtils.widgetGetOne('.*知道了.*', 2000)
     if (okBtn) {
-      okBtn.click()
+      automator.clickRandom(okBtn)
       sleep(1500)
     }
   }
@@ -401,7 +401,7 @@ function BeanCollector () {
       } else {
         this.pushLog('未能通过坐标方式找到双签领豆入口，使用坐标点击')
         FloatyInstance.setFloatyInfo(entryPoint, '双签领豆入口')
-        automator.click(entryPoint.x, entryPoint.y)
+        automator.clickPointRandom(entryPoint.x, entryPoint.y)
       }
 
       if (this.checkDoubleCheckDone()) {

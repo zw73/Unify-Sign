@@ -62,7 +62,7 @@ function SignRunner () {
       }, '找到了关闭按钮')
       sleep(500)
       FloatyInstance.setFloatyText('点击关闭')
-      automator.clickCenter(closeButton)
+      automator.clickRandom(closeButton)
       sleep(500)
       closeButton = widgetUtils.widgetGetById('com.yaya.zone:id/iv_(close|cancel)', 1000)
     }
@@ -85,7 +85,7 @@ function SignRunner () {
         y: mine.bounds().centerY()
       }, '找到了 我的 按钮')
       sleep(600)
-      automator.click(mine.bounds().centerX(), mine.bounds().centerY())
+      automator.clickPointRandom(mine.bounds().centerX(), mine.bounds().centerY())
       sleep(3000)
       // 领积分
       this.points()
@@ -131,7 +131,7 @@ function SignRunner () {
     }
     let fishpond = this.captureAndCheckByImg(fishpond_entry, '叮咚鱼塘')
     if (fishpond) {
-      automator.click(fishpond.centerX(), fishpond.centerY())
+      automator.clickPointRandom(fishpond.centerX(), fishpond.centerY())
       sleep(2000)
       let continuousSigned = false
       if (!this.checkForTargetImg(fishpond_check, '鱼塘加载校验')) {
@@ -148,7 +148,7 @@ function SignRunner () {
       if (!continuousSigned) {
         let continuousSign = this.captureAndCheckByImg(continuous_sign, '连续签到')
         if (continuousSign) {
-          automator.click(continuousSign.centerX(), continuousSign.centerY())
+          automator.clickPointRandom(continuousSign.centerX(), continuousSign.centerY())
           sleep(2000)
           this.checkIfContinuousOpen()
           sleep(2000)
@@ -156,16 +156,16 @@ function SignRunner () {
       }
       let collect = this.captureAndCheckByImg(can_collect, '可领取')
       if (collect) {
-        automator.click(collect.centerX(), collect.centerY())
+        automator.clickPointRandom(collect.centerX(), collect.centerY())
         sleep(1000)
         let sign = this.captureAndCheckByImg(fishpond_daily_collect, '每日签到')
         if (sign) {
-          automator.click(sign.centerX(), sign.centerY())
+          automator.clickPointRandom(sign.centerX(), sign.centerY())
           sleep(1000)
         }
         let sign2 = this.captureAndCheckByImg(fishpond_normal_collect, '奖励领取')
         while (sign2) {
-          automator.click(sign2.centerX(), sign2.centerY())
+          automator.clickPointRandom(sign2.centerX(), sign2.centerY())
           sleep(2000)
           this.checkForTargetImg(fishpond_check, '鱼塘加载校验')
           sign2 = this.captureAndCheckByImg(fishpond_normal_collect, '奖励领取')
@@ -173,7 +173,7 @@ function SignRunner () {
       }
       closeButton = this.captureAndCheckByImg(fishpond_close, '关闭按钮')
       if (closeButton) {
-        automator.click(closeButton.centerX(), closeButton.centerY())
+        automator.clickPointRandom(closeButton.centerX(), closeButton.centerY())
       } else {
         automator.back()
       }
@@ -232,7 +232,7 @@ function SignRunner () {
     }
     let orchard = this.captureAndCheckByImg(orchardEntry, '叮咚果园')
     if (orchard) {
-      automator.click(orchard.centerX(), orchard.centerY())
+      automator.clickPointRandom(orchard.centerX(), orchard.centerY())
       sleep(2000)
       if (!this.checkForTargetImg(orchardEnterCheck, '果园加载校验')) {
         FloatyInstance.setFloatyText('未能正确打开果园')

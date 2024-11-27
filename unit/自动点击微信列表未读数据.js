@@ -12,7 +12,7 @@ if (bottomWidget) {
 function checkAndClick() {
   let target = widgetUtils.widgetGetById('com.tencent.mm:id/ga3')
   if (target && target.bounds().top < bottomHeight) {
-    automator.clickCenter(target)
+    automator.clickRandom(target)
     sleep(1000)
     automator.back()
     return true

@@ -37,7 +37,7 @@ function SignRunner () {
       }
     }
     if (clickMine) {
-      automator.clickCenter(clickMine)
+      automator.clickRandom(clickMine)
       sleep(1000)
       if (this.captureAndCheckByImg(signImg, '签到', null, true)) {
         this.setExecuted()

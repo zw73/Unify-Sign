@@ -108,7 +108,7 @@ function SignRunner () {
     if (this.displayButton(signEntry, '今日签到')) {
       let clickPoint = { x: signEntry.bounds().left, y: signEntry.bounds().bottom + signEntry.bounds().height() }
       logUtils.debugInfo(['点击位置：{}', JSON.stringify(clickPoint)])
-      automator.click(clickPoint.x, clickPoint.y)
+      automator.clickPointRandom(clickPoint.x, clickPoint.y)
       sleep(1000)
       this.checkDailySign()
       WarningFloaty.clearAll()

@@ -102,9 +102,9 @@ function BaseSignRunner () {
       executeDate: date,
     }
     let scheduleList = signTaskService.listTaskScheduleByDate(date, taskCode)
-    let exists = scheduleList.filter(schedule => schedule.executeStatus === 'A' && schedule.executeTime > targetTime && schedule.executeTime - targetTime < 5 * 60000)
+    let exists = scheduleList.filter(schedule => schedule.executeStatus === 'A' && schedule.executeTime < (targetTime + 5 * 60000))
     if (exists && exists.length >= 1) {
-      logUtils.warnInfo(['任务[{}]已存在五分钟内的执行计划{}个 跳过创建', taskCode, exists.length])
+      logUtils.warnInfo(['任务[{}]已存在目标时间内的执行计划{}个 跳过创建', taskCode, exists.length])
       logUtils.debugInfo(['重复任务信息：{}', JSON.stringify(exists)])
       return
     }
@@ -159,7 +159,7 @@ function BaseSignRunner () {
       FloatyInstance.setFloatyText('准备查找是否存在' + checkContent)
       let skip = WidgetUtils.widgetGetOne(checkContent, 3000)
       if (skip !== null) {
-        automator.clickCenter(skip)
+        automator.clickRandom(skip)
         sleep(1000)
       }
     })
@@ -176,9 +176,9 @@ function BaseSignRunner () {
     this.displayButton(button, desc, delay)
     if (button) {
       if (clickByA11y && button.clickable()) {
-        button.click()
+        automator.clickRandom(button)
       } else if (automator.checkCenterClickable(button)) {
-        automator.clickCenter(button)
+        automator.clickRandom(button)
       } else {
         logUtils.errorInfo(['按钮位置不正确无法点击，请检查代码'], true)
         return false
@@ -237,7 +237,7 @@ function BaseSignRunner () {
         }, '找到了 ' + content)
         sleep(delay)
         if (clickIt) {
-          automator.click(collect.centerX(), collect.centerY())
+          automator.clickPointRandom(collect.centerX(), collect.centerY())
           sleep(delay)
         }
         return this.wrapImgPointWithBounds(collect)
@@ -247,7 +247,7 @@ function BaseSignRunner () {
         return this.captureAndCheckByImg(base64, content, delay, clickIt, loop)
       }
     }
-    FloatyInstance.setFloatyText('未找到 ' + content)
+    FloatyInstance.setFloatyInfo({ x: config.device_width / 2.7, y: config.device_height / 2 }, '未找到 ' + content)
     sleep(delay)
     return null
   }
@@ -277,7 +277,7 @@ function BaseSignRunner () {
         }, '找到了 ' + content)
         sleep(delay)
         if (clickIt) {
-          automator.click(collect.centerX(), collect.centerY())
+          automator.clickPointRandom(collect.centerX(), collect.centerY())
           sleep(delay)
         }
         return this.wrapOcrPointWithBounds(collect)
@@ -290,7 +290,7 @@ function BaseSignRunner () {
     } else {
       logUtils.errorInfo('截图失败')
     }
-    FloatyInstance.setFloatyText('未找到 ' + content)
+    FloatyInstance.setFloatyInfo({ x: config.device_width / 2.7, y: config.device_height / 2 }, '未找到 ' + content)
     sleep(delay)
     return null
   }
@@ -331,7 +331,7 @@ function BaseSignRunner () {
     limit = limit || 5
     let find = this.captureAndCheckByImg(base64, content, null, false, 1)
     while (!find && limit-- > 0) {
-      FloatyInstance.setFloatyText('暂未找到' + content + ' 继续等待')
+      FloatyInstance.setFloatyInfo({ x: config.device_width / 2.7, y: config.device_height / 2 }, '暂未找到' + content + ' 继续等待')
       sleep(1000)
       find = this.captureAndCheckByImg(base64, content, null, false, 1)
     }
@@ -360,7 +360,7 @@ function BaseSignRunner () {
         return this.wrapImgPointWithBounds(collect)
       }
     }
-    FloatyInstance.setFloatyText('未找到 ' + content)
+    FloatyInstance.setFloatyInfo({ x: config.device_width / 2.7, y: config.device_height / 2 }, '未找到 ' + content)
     sleep(delay)
     return null
   }

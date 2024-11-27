@@ -34,7 +34,7 @@ function SignRunner () {
     let mine = this.openEleme()
     if (mine) {
       this.pushLog('找到了我的按钮')
-      automator.clickCenter(mine)
+      automator.clickRandom(mine)
       sleep(1000)
       this.pushLog('通过OCR查找赚吃货豆')
       let rewardButton = this.captureAndCheckByOcr('.*(赚|賺)?吃货豆.*', '赚吃货豆', null, null, true, 3)
@@ -46,7 +46,7 @@ function SignRunner () {
             boundsInfo = signBtn.bounds()
             FloatyInstance.setFloatyInfo({ x: boundsInfo.centerX(), y: boundsInfo.top - 10 }, '立即签到')
             sleep(500)
-            automator.clickCenter(signBtn)
+            automator.clickRandom(signBtn)
             sleep(1000)
             this.signedStore.updateStorageValue(value => value.executed = true)
           } else {
@@ -150,7 +150,7 @@ function SignRunner () {
       this.visitedTasks.push(checkTaskInfo)
       this.pushLog('找到了去(浏览|逛逛|完成)')
       sleep(500)
-      automator.clickCenter(checkBtn)
+      automator.clickRandom(checkBtn)
       sleep(2000)
       let total = 20
       while (total-- > 0) {

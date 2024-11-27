@@ -88,7 +88,7 @@ function CreditRunner () {
       targets.forEach(val => {
         let contentInfo = isDesc ? val.desc() : val.text()
         if (this.canCollect(val)) {
-          automator.clickCenter(val)
+          automator.clickRandom(val)
           logUtils.logInfo([
             'value: {}', contentInfo
           ])

@@ -90,7 +90,7 @@ function SignRunner () {
         let bounds = find[0].bounds
         FloatyInstance.setFloatyInfo(this.boundsToPosition(bounds), '立即签到')
         sleep(1000)
-        automator.click(bounds.centerX(), bounds.centerY())
+        automator.clickPointRandom(bounds.centerX(), bounds.centerY())
         sleep(1000)
         find = widgetUtils.widgetGetOne('.*继续领现金.*')
         if (find) {
@@ -163,7 +163,7 @@ function SignRunner () {
     let awardCountdown = findByWidgetOrOcr('点击.*取', [config.device_width / 2, config.device_height * 0.1, config.device_width, config.device_height * 0.6])
     if (awardCountdown) {
       this.displayButton(awardCountdown, '可以领')
-      automator.clickCenter(awardCountdown)
+      automator.clickRandom(awardCountdown)
       sleep(1000)
       if (this.closeDialogIfPossible()) {
         logUtils.debugInfo(['通过弹窗浏览广告'])
@@ -350,10 +350,10 @@ function SignRunner () {
   this.closeDialogIfPossible = function () {
     let toUse = widgetUtils.alternativeWidget('去使用', '立即领\\d+元宝', 3000, true)
     if (toUse.value == 1) {
-      automator.clickCenter(toUse.target)
+      automator.clickRandom(toUse.target)
       sleep(3000)
     } else if (toUse.value == 2) {
-      automator.clickCenter(toUse.target)
+      automator.clickRandom(toUse.target)
       sleep(1000)
       this.doBrowsing()
       automator.back()
