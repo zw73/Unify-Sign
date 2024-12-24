@@ -43,6 +43,8 @@ let default_config = {
   dismiss_dialog_if_locked: true,
   // 佛系模式
   buddha_like_mode: false,
+  // 多设备可信登录
+  multi_device_login: false,
   request_capture_permission: true,
   not_lingering_float_window: true,
   capture_permission_button: 'START NOW|立即开始|允许',

@@ -17,6 +17,7 @@ let FloatyInstance = singletonRequire('FloatyUtil')
 let warningFloaty = singletonRequire('WarningFloaty')
 let AiUtil = require('../lib/AIRequestUtil.js')
 let BaseSignRunner = require('./BaseSignRunner.js')
+let taskUtil = require('../lib/TaskUtil.js')
 
 function SignRunner () {
   BaseSignRunner.call(this)
@@ -90,17 +91,36 @@ function SignRunner () {
     return checkResult
   }
 
-  function openAlipayMultiLogin (reopen) {
+  this.openAlipayMultiLogin = function (reopen) {
     if (config.multi_device_login && !reopen) {
       debugInfo(['已开启多设备自动登录检测，检查是否有 进入支付宝 按钮'])
       let entryBtn = widgetUtils.widgetGetOne(/^进入支付宝$/, 1000)
       if (entryBtn) {
-        FloatyInstance.setFloatyText('其他设备正在登录，等待5分钟后进入')
-        commonFunctions.waitForAction(300, '等待进入支付宝')
-        unlocker && unlocker.exec()
-        automator.clickRandom(entryBtn)
-        sleep(1000)
-        return true
+        let storage = storages.create("alipay_multi_login")
+        let multiLoginFlag = storage.get("flag")
+        let multiLoginTime = storage.get("timestamp")
+        let currentTime = new Date().getTime()
+        let waitMin = 10
+        if (!multiLoginFlag) {
+          FloatyInstance.setFloatyText('检测到其他设备登录，' + waitMin + '分钟后重试')
+          debugInfo('检测到其他设备登录,记录时间并设置10分钟后重试')
+          storage.put("flag", true)
+          storage.put("timestamp", currentTime)
+          commonFunctions.setUpAutoStart(waitMin)
+          exit()
+        } else if (currentTime - multiLoginTime >= waitMin * 60 * 1000) {
+          FloatyInstance.setFloatyText('等待时间已到，点击进入支付宝')
+          debugInfo('已等待10分钟,点击进入支付宝')
+          automator.clickRandom(entryBtn)
+          sleep(1000)
+          return true
+        } else {
+          let remainMinutes = Math.ceil((waitMin * 60 * 1000 - (currentTime - multiLoginTime)) / (60 * 1000))
+          FloatyInstance.setFloatyText('等待时间未到，还需等待' + remainMinutes + '分钟')
+          debugInfo('等待时间未到10分钟,设置剩余时间后重试')
+          commonFunctions.setUpAutoStart(remainMinutes)
+          exit()
+        }
       } else {
         debugInfo(['未找到 进入支付宝 按钮'])
       }
@@ -118,7 +138,7 @@ function SignRunner () {
     sleep(500)
     FloatyInstance.setFloatyText('校验是否有打开确认弹框')
     let startTime = new Date().getTime()
-    while (new Date().getTime() - startTime < 30000) {
+    while (new Date().getTime() - startTime < 90000) {
       let confirm = widgetUtils.widgetGetOne(/^打开$/, 1000)
       if (confirm) {
         this.displayButtonAndClick(confirm, '找到了打开按钮')
@@ -126,7 +146,7 @@ function SignRunner () {
         FloatyInstance.setFloatyText('没有打开确认弹框')
       }
 
-      if (openAlipayMultiLogin(reopen)) {
+      if (this.openAlipayMultiLogin(reopen)) {
         return this.openAlipayFarm(true)
       }
     
@@ -197,133 +217,6 @@ function SignRunner () {
     }
   }
 
-  this.backToTaskUI = function (projectCode) {
-    warnInfo('检查是否在任务界面，不在的话返回，尝试两次')
-    let backResult = false
-    let waitCount = 2
-    while (!(backResult=this.isInTaskUI(projectCode,5000)) && waitCount-->0) {
-      automator.back()
-      sleep(1000)
-    }
-  
-    if (backResult) {
-      sleep(2000)
-      return true
-    }
-    
-    warnInfo(['返回失败，重新尝试打开任务界面'])
-    if (!this.isInProjectUI(projectCode)) {
-      warnInfo(['不在项目界面，重新尝试打开项目'])
-      this.startApp(projectCode)
-    }
-  
-    if (!this.isInProjectUI(projectCode)) {
-      warnInfo(['打开项目失败，5分钟后重新尝试'])
-      commonFunctions.setUpAutoStart(5)
-      return false
-    }
-  
-    if(!this.isInTaskUI(projectCode)) {
-      if (!this.openTaskWindow(projectCode)) {
-        warnInfo(['打开任务界面失败，5分钟后重新尝试'])
-        commonFunctions.setUpAutoStart(5)
-        return false
-      }
-    }
-    return true
-  }
-
-  this.doCommonTask = function (projectCode, titleText, entryBtn, timeout, needScroll) {
-    if (!commonFunctions.checkAppInstalledByName(titleText)) {
-      LogFloaty.pushLog('未安装应用，跳过执行：'+titleText)
-      return false
-    }
-    
-    if (!entryBtn) {
-      LogFloaty.pushLog('无入口按钮，跳过执行：'+titleText)
-      return false
-    }
-    titleText = titleText || entryBtn.text()
-    timeout = timeout || 15
-    let taskType = 'browse'
-  
-    currentRunning = commonFunctions.myCurrentPackage()
-    debugInfo('当前包名：'+currentRunning)
-    
-    entryBtn.click()
-    LogFloaty.pushLog('等待进入 '+titleText+', 计时：'+timeout+', 滑动：'+needScroll)
-    commonFunctions.waitForAction(10, titleText, function () {
-      let popupConfirmBtn = widgetUtils.widgetGetOne("^允许$", 1000, false, false, (m) =>
-        m.boundsInside(0, config.device_height * 0.2, config.device_width, config.device_height)
-      );
-      if (popupConfirmBtn) {
-        debugInfo("找到了弹窗确认按钮");
-        automator.clickRandom(popupConfirmBtn);
-        sleep(5000)
-        return true
-      }
-      return false
-    });
-  
-    if (currentRunning != commonFunctions.myCurrentPackage()) {
-      taskType = 'visitapp'
-      //已进入目标应用，等待加载完成
-      sleep(5000)
-    } else if (this.isInTaskUI(projectCode)) {
-      LogFloaty.pushLog('进入任务失败：'+titleText)
-      return false
-    }
-  
-    //检查是否有验证窗口，有则等待直到消失
-    commonFunctions.waitForTBVerify()
-  
-    //根据需要等待一段时间进行浏览
-    if (timeout) {
-      LogFloaty.pushLog(titleText+' 等待倒计时结束')
-      let limit = timeout
-      while (limit-- > 0) {
-        //检查是否有弹窗
-        let popupCancelBtn = widgetUtils.widgetGetOne("^取消|忽略|关闭|拒绝$", 1000, false, false, m => m.boundsInside(0,  config.device_height * 0.2, config.device_width, config.device_height))
-        if (popupCancelBtn) {
-          debugInfo('找到了弹窗取消按钮')
-          automator.clickRandom(popupCancelBtn)
-        }
-  
-        LogFloaty.replaceLastLog(titleText+' 等待倒计时结束 剩余：' + limit + 's')
-        if (limit % 2 == 0 && needScroll) {
-          automator.scrollUpAndDown()
-          sleep(100)
-        } else {
-          sleep(1000)
-        }
-      }
-    } else {
-      sleep(3000)
-      LogFloaty.pushLog('啥也不用干 直接返回')
-    }
-    if (taskType == 'visitapp') {
-      commonFunctions.minimize()
-      sleep(1000)
-      if (currentRunning != commonFunctions.myCurrentPackage()) {
-        LogFloaty.pushLog('未返回原应用，直接打开 '+ currentRunning)
-        app.launch(currentRunning);
-        sleep(3000)
-      }
-    }
-  
-    automator.back()
-    sleep(1000)
-    return true
-  }
-  
-  this.doSpecialTask = function (action,titleObj,entryBtn) {
-    if (titleObj && entryBtn && this[action]) {
-      return this[action](titleObj,entryBtn)
-    } else {
-      return false
-    }
-  }
-  
   this.doCatchChicks = function (titleObj,entryBtn) {
     let result = false
     if (entryBtn) {
@@ -471,10 +364,13 @@ function SignRunner () {
           if (parentView&&parentView.childCount()>3){
             let prizeBtn = parentView.child(3)
             if (prizeBtn&&prizeBtn.childCount()>0) {
-              debugInfo('挑战状态：'+prizeBtn.child(0).text())
               if (prizeBtn.child(0).text().indexOf('已完成')>=0) {
                 debugInfo('挑战任务已完成：'+title.text())
                 doneCount++
+                return
+              } else if (prizeBtn.child(0).text().indexOf('进行中')>=0) {
+                debugInfo('挑战任务进行中：'+title.text())
+                return
               }
             } else {
               debugInfo('挑战状态：'+prizeBtn.text())
@@ -642,7 +538,6 @@ function SignRunner () {
       return false
     }
     
-    let hasTask = false
     let limit = 10
     while (!widgetUtils.widgetCheck('前往手机淘宝.*芭芭农场', 1000) && limit-- > 0) {
         randomScrollDown()
@@ -661,6 +556,7 @@ function SignRunner () {
       ]},
       {btnRegex:'去完成', tasks:[
         {taskType:'doBrowseAndCollect',titleRegex:'.*逛好物最高得2000肥料.*\\d+/\\d+.*'},
+        {taskType:'browse',titleRegex:'.*逛好物.*得1000肥料.*\\d+/\\d+.*',timeout:30,needScroll:true},
         {taskType:'browse',titleRegex:'.*逛一逛得1500肥料.*\\d+/\\d+.*',timeout:15,needScroll:true},
         {taskType:'browse',titleRegex:'.*(逛|看)精选商品.*\\d+/\\d+.*',timeout:15,needScroll:true},
         {taskType:'browse',titleRegex:'.*逛.*好货得肥料.*\\d+/\\d+.*',timeout:15,needScroll:true},
@@ -671,45 +567,14 @@ function SignRunner () {
         {taskType:'app',titleRegex:'.*逛淘宝看视频领现金.*\\d+/\\d+.*',timeout:15,needScroll:false},
         {taskType:'app',titleRegex:'.*逛饿了么.*\\d+/\\d+.*',timeout:15,needScroll:false},
         {taskType:'app',titleRegex:'.*逛一逛抖音极速版.*\\d+/\\d+.*',timeout:3,needScroll:false},
+        {taskType:'app',titleRegex:'.*去体验七猫小说.*\\d+/\\d+.*',timeout:3,needScroll:false},
+        {taskType:'app',titleRegex:'.*逛一逛头条极速版.*\\d+/\\d+.*',timeout:3,needScroll:false},
       ]},
     ]
   
-    do {
-      hasTask = false
-      for (let i = 0; i < taskInfos.length && !this.execFailed; i++) {
-        let taskInfo = taskInfos[i]
-        let btns = widgetUtils.widgetGetAll(taskInfo.btnRegex, 3000)
-        if (btns && btns.length > 0) {
-          btns.forEach(btn => {
-            if (this.execFailed) {
-              debugInfo('当前脚本执行失败，跳过执行')
-              return false
-            }
-
-            let titleObj = commonFunctions.getTaskTitleObj(btn,1)
-            if (titleObj) {
-              let titleText = titleObj.text()
-              LogFloaty.pushLog('发现任务：'+titleText)
-              for (let j = 0; j < taskInfo.tasks.length; j++) {
-                let task = taskInfo.tasks[j]
-                if (titleText.match(task.titleRegex)) {
-                  LogFloaty.pushLog('开始执行任务：'+titleText)
-                  if (task.taskType == 'browse') {
-                    hasTask = this.doCommonTask('BBFarm.alipay', titleText, btn, task.timeout, task.needScroll) || hasTask
-                  } else if (task.taskType == 'app') {
-                    hasTask = this.doCommonTask('BBFarm.alipay', titleText, btn, task.timeout, task.needScroll) || hasTask
-                  } else {
-                    hasTask = this.doSpecialTask(task.taskType, titleObj, btn) || hasTask
-                  }
-                  this.backToTaskUI('BBFarm.alipay')
-                  break
-                }
-              }
-            }
-          })
-        }
-      }
-    } while (hasTask && !this.execFailed)
+    taskUtil.initProject(this,'BBFarm.alipay')
+    taskUtil.doTasks(taskInfos)
+  
     scrollUpTop()
 
     sleep(1000)
@@ -717,7 +582,6 @@ function SignRunner () {
     if (collects && collects.length > 0) {
       debugInfo('找到可领取的奖励：' + collects.length)
       for (let i = 0; i < collects.length; i++) {
-        //automator.clickRandom(collects[i])
         collects[i].click()
         sleep(1000)
       };
@@ -999,7 +863,6 @@ function SignRunner () {
       sleep(1000)
     }
 
-    let hasTask = false
     let limit = 10
     while (!widgetUtils.widgetCheck('领肥料礼包.*|领肥料小提示.*', 1000) && limit-- > 0) {
         randomScrollDown()
@@ -1051,45 +914,16 @@ function SignRunner () {
         {taskType:'app',titleRegex:'去天猫.*\\d+/\\d+.*',timeout:15,needScroll:false},
         //     去闲鱼币领现金红包：直接返回
         {taskType:'app',titleRegex:'去闲鱼.*\\d+/\\d+.*',timeout:15,needScroll:false},
+        //     去微博参与开学活动：直接返回
+        {taskType:'app',titleRegex:'去微博.*\\d+/\\d+.*',timeout:3,needScroll:false},
+        //     去菜鸟裹酱每天领PS5：直接返回
+        // {taskType:'app',titleRegex:'去菜鸟.*\\d+/\\d+.*',timeout:3,needScroll:false},
       ]},
     ]
   
-    do {
-      hasTask = false
-      for (let i = 0; i < taskInfos.length && !this.execFailed; i++) {
-        let taskInfo = taskInfos[i]
-        let btns = widgetUtils.widgetGetAll(taskInfo.btnRegex, 3000)
-        if (btns && btns.length > 0) {
-          btns.forEach(btn => {
-            if (this.execFailed) {
-              debugInfo('当前脚本执行失败，跳过执行')
-              return false
-            }
+    taskUtil.initProject(this,'BBFarm.taobao')
+    taskUtil.doTasks(taskInfos)
 
-            let titleObj = commonFunctions.getTaskTitleObj(btn,2)
-            if (titleObj) {
-              let titleText = titleObj.text()
-              LogFloaty.pushLog('发现任务：'+titleText)
-              for (let j = 0; j < taskInfo.tasks.length; j++) {
-                let task = taskInfo.tasks[j]
-                if (titleText.match(task.titleRegex)) {
-                  LogFloaty.pushLog('开始执行任务：'+titleText)
-                  if (task.taskType == 'browse') {
-                    hasTask = this.doCommonTask('BBFarm.taobao', titleText, btn, task.timeout, task.needScroll) || hasTask
-                  } else if (task.taskType == 'app') {
-                    hasTask = this.doCommonTask('BBFarm.taobao', titleText, btn, task.timeout, task.needScroll) || hasTask
-                  } else {
-                    hasTask = this.doSpecialTask(task.taskType, titleObj, btn) || hasTask
-                  }
-                  this.backToTaskUI('BBFarm.taobao')
-                  break
-                }
-              }
-            }
-          })
-        }
-      }
-    } while (hasTask && !this.execFailed)
     scrollUpTop()
 
     let collects = widgetUtils.widgetGetAll('^.*领取$',3000)

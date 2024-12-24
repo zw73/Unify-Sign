@@ -224,7 +224,10 @@ function enterMengxiaoYuan () {
     sleep(5000)
     debugInfo(['点击萌小院入口'])
     automator.clickRandom(entryBtn.parent().parent())
-    sleep(10000)
+    //等待进入并跳过启动弹窗
+    commonFunctions.waitForAction(20,'进入萌小院',function () {
+      return captureAndCheckByOcr('小店', '萌小院标志',[config.device_width/2,config.device_height/2,config.device_width/2,config.device_height/2])
+    })
   }
 }
 
@@ -251,24 +254,26 @@ function closePopup() {
 function skipPopupIfNeed() {
   debugInfo('检查是否有启动弹窗')
   let hasClose_btn = null
+  let result = false
   do {
     debugInfo(['检查领取体力弹窗'])
-    let getGift_btn = captureAndCheckByOcr('.*领取体力.*', '领取体力按钮',null,null,null,1)
+    let getGift_btn = captureAndCheckByOcr('.*领取体力.*', '领取体力按钮')
     if (getGift_btn) {
       debugInfo(['点击领取体力按钮'])
       automator.clickRandom(getGift_btn)
       sleep(2000)
-      captureAndCheckByOcr('领取', '领取按钮',null,1000,true,1)
+      captureAndCheckByOcr('领取', '领取按钮',null,1000,true)
       sleep(2000)
     }
     hasClose_btn = closePopup()
+    result = result || hasClose_btn
   } while (hasClose_btn)
-  sleep(3000)
+  return result
 }
 
 function openSideBar() {
   debugInfo('打开侧边栏')
-  let sideBarBtn = captureAndCheckByOcr('功|能', '侧边栏按钮',[0,0,config.device_width/2,config.device_height/2],null,false,1)
+  let sideBarBtn = captureAndCheckByOcr('功|能', '侧边栏按钮',[0,0,config.device_width/2,config.device_height/2])
   if (!sideBarBtn) {
     return false
   }
@@ -465,42 +470,88 @@ function openFriendList () {
   } else {
     let region = [0, config.device_height/4, config.device_width, config.device_height/4*3]
     let getCount = 0
-    while (getCount < 10) {
-      let screen = commonFunctions.captureScreen()
-      let getTexts = localOcrUtil.recognizeWithBounds(screen, region, '^小店$')
-      let minBtnY = config.device_height
-      let maxBtnY = 0
-      if (getTexts && getTexts.length > 0) {
-        getTexts.forEach(getText => {
-          if (getCount>=10) {
-            return
-          }
-          debugInfo(['OCR找到了小店按钮：{}', getText.label])
-          WarningFloaty.addRectangle(getText.label, boundsToRegion(getText.bounds))
-          let y = getText.bounds.centerY()
-          minBtnY = Math.min(y, minBtnY)
-          maxBtnY = Math.max(y, maxBtnY)
-          debugInfo(['点击领取体力按钮'])
-          getText.bounds.left += 200
-          getText.bounds.right += 200
-          WarningFloaty.addRectangle('体力', boundsToRegion(getText.bounds))
-          automator.clickRandom(wrapOcrPointWithBounds(getText.bounds))
-          sleep(2000)
-          captureAndCheckByOcr('^确认赠送$','确认赠送按钮',null,null,true,1)
-          sleep(2000)
-          captureAndCheckByOcr('^领取$', '领取按钮',null,null,true,1)
-          sleep(2000)
-          getCount++
-        });
-        WarningFloaty.clearAll()
-      } else {
-        debugInfo('未找到领取体力按钮')
-        break
+    let repeat = 0
+    let minBtnY = config.device_height / 4 * 3
+    let maxBtnY = config.device_height / 4
+    
+    // 处理赠送按钮的函数
+    let processGiftBtn = function(giftBtn, isReturnGift) {
+      if (getCount >= 10) return
+      
+      debugInfo(['OCR找到了{}按钮：{}', isReturnGift ? '回赠' : '小店', giftBtn.label])
+      WarningFloaty.addRectangle(giftBtn.label, boundsToRegion(giftBtn.bounds))
+      let y = giftBtn.bounds.centerY()
+      minBtnY = Math.min(y, minBtnY)
+      maxBtnY = Math.max(y, maxBtnY)
+      
+      if (!isReturnGift) {
+        // 小店按钮需要偏移到赠送按钮位置
+        giftBtn.bounds.left += 200
+        giftBtn.bounds.right += 200
+        WarningFloaty.addRectangle('体力', boundsToRegion(giftBtn.bounds))
       }
       
+      automator.clickRandom(wrapOcrPointWithBounds(giftBtn.bounds))
+      sleep(2000)
+      captureAndCheckByOcr('^确认赠送$','确认赠送按钮',null,null,true,1)
+      sleep(2000)
+      captureAndCheckByOcr('^领取$', '领取按钮',null,null,true,1)
+      sleep(2000)
+      getCount++
+      WarningFloaty.clearAll()
+    }
+
+    // 第一阶段：处理所有回赠按钮
+    debugInfo('开始处理回赠按钮')
+    while (repeat < 7 && getCount < 10) {
+      let screen = commonFunctions.captureScreen()
+      let returnGiftBtns = localOcrUtil.recognizeWithBounds(screen, region, '^回赠$')
+      if (returnGiftBtns && returnGiftBtns.length > 0) {
+        debugInfo(['找到{}个回赠按钮', returnGiftBtns.length])
+        returnGiftBtns.forEach(btn => processGiftBtn(btn, true))
+      }
+      
+      if (getCount >= 10) break
+      
       //滑动到下一屏继续寻找
-      automator.gestureDown(maxBtnY,minBtnY)
+      automator.gestureDown(maxBtnY, minBtnY, 2000)
       sleep(1000)
+      repeat++
+    }
+
+    // 如果还有剩余次数，处理小店按钮
+    if (getCount < 10 && !captureAndCheckByOcr('^剩余赠送次数[:：]0/10$','赠送完成标识',[0, config.device_height-400, config.device_width, 400],null,null,1)) {
+      debugInfo('开始处理小店按钮')
+      // 回到顶部
+      for (let i = 0; i < repeat; i++) {
+        automator.gestureUp(region[1]+100, region[1]+region[3]-200)
+        sleep(1000)
+      }
+      
+      // 重置计数和坐标
+      repeat = 0
+      minBtnY = config.device_height / 4 * 3
+      maxBtnY = config.device_height / 4
+
+      // 第二阶段：处理小店按钮
+      while (repeat < 7 && getCount < 10) {
+        let screen = commonFunctions.captureScreen()
+        let shopBtns = localOcrUtil.recognizeWithBounds(screen, region, '^小店$')
+        if (shopBtns && shopBtns.length > 0) {
+          debugInfo(['找到{}个小店按钮', shopBtns.length])
+          shopBtns.forEach(btn => processGiftBtn(btn, false))
+        } else {
+          debugInfo('未找到小店按钮')
+          if (repeat >= 3) break
+        }
+        
+        if (getCount >= 10) break
+        
+        //滑动到下一屏继续寻找
+        automator.gestureDown(maxBtnY, minBtnY, 2000)
+        sleep(1000)
+        repeat++
+      }
     }
   }
   
