@@ -131,16 +131,44 @@ function randomSwipe(sx,sy,ex,ey){
 }
 
 function test4() { 
-  debugInfo('开始测试随机滑动')
+  debugInfo('开始测试随机滑动4')
   sleep(3000)
-  let [x1,y1,x2,y2] = [randomNum(100,266),randomNum(1534,1658),randomNum(940,1040),randomNum(1529,1657),randomNum(970,1010)]
+  
+  // let bx = automator.randomRange(50, 150)
+  // let by = automator.randomRange(700, 900)
+  // let sx = automator.randomRange(900, 930)
+  // let sy = automator.randomRange(700, 900)
+
+  // // 测试不同方向的滑动
+  // debugInfo('测试1：水平向右滑动')
+  // automator.gesturePath({x:bx,y:by},{x:sx,y:sy},1000)
+  
+  // debugInfo('测试2：水平向左滑动')  
+  // automator.gesturePath({x:900,y:800},{x:100,y:800},1000)
+  
+  // debugInfo('测试3：垂直向下滑动')
+  // automator.gesturePath({x:500,y:200},{x:500,y:1600},1000)
+  
+  // debugInfo('测试4：垂直向上滑动')
+  // automator.gesturePath({x:500,y:1600},{x:500,y:200},1000)
+  
+  // debugInfo('测试5：对角线滑动')
+  // automator.gesturePath({x:100,y:200},{x:900,y:1600},1200)
+  
+  // debugInfo('测试6：短距离滑动')
+  // automator.gesturePath({x:500,y:800},{x:600,y:850},500)
+  
+  // debugInfo('测试7：长距离滑动')
+  // automator.gesturePath({x:100,y:200},{x:900,y:1600},2000)
+  
+  debugInfo('测试8：随机滑动')
+  let [x1,y1,x2,y2,dur] = [randomNum(100,266),randomNum(1534,1658),randomNum(940,1040),randomNum(1529,1657),randomNum(970,1010)]
   debugInfo(['随机滑动：{} {} {} {} {}',x1,y1,x2,y2,dur])
-  // automator.swipe(x1,y1,x2,y2,dur)
   automator.gesturePath({x:x1,y:y1},{x:x2,y:y2},dur)
 }
 
 function test5() {
-  debugInfo('开始测试随机滑动')
+  debugInfo('开始测试随机滑动5')
   // let [x_start,startY,endX,endY,duration] = [randomNum(100,266),randomNum(1534,1658),randomNum(940,1040),randomNum(1529,1657),randomNum(970,1010)]
   // let delay_time = randomNum(1000,1500)
   while (true) {
@@ -491,5 +519,4 @@ function test8() {
   }
 }
 
-test8()
-
+test4()

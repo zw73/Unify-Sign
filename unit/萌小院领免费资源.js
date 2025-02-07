@@ -16,6 +16,7 @@ FloatyInstance.enableLog()
 config.not_lingering_float_window = true
 
 let commonFunctions = singletonRequire('CommonFunction')
+commonFunctions.killDuplicateScript()
 let widgetUtils = singletonRequire('WidgetUtils')
 let automator = singletonRequire('Automator')
 
@@ -205,9 +206,11 @@ function getFreeResource (region) {
           })
         }
         //滑动到下一屏继续寻找
-        automator.gestureDown(region[1]+region[3]-200,region[1]+100)
-        sleep(3000)
-        repeat++
+        //20250207 关闭滑动避免收取无用杂物，提升效率
+        // automator.gestureDown(region[1]+region[3]-200,region[1]+200,3000)
+        // sleep(3000)
+        // repeat++
+        break
       }
     }
     WarningFloaty.clearAll()
@@ -316,16 +319,22 @@ function openShop () {
   }
   if (commonFunctions.checkFreeResourceCollected()) {
     debugInfo('已领取免费商品')
-    return
+    // return
   }
   debugInfo(['点击商城按钮'])
   automator.clickRandom(actionBtns.shopBtn)
   sleep(2000)
 
-  getFreeResource([0, config.device_height/4, config.device_width, config.device_height/4*3])
-  
-  automator.clickRandom(actionBtns.backBtn)
-  sleep(3000)
+  let screen = commonFunctions.captureScreen()
+  let shopTexts = localOcrUtil.recognizeWithBounds(screen, [0, 0, config.device_width, config.device_height/2], '百货商城')
+  if (shopTexts && shopTexts.length > 0) {
+    debugInfo('找到百货商城,准备领取免费资源')
+    getFreeResource([0, config.device_height/4, config.device_width, config.device_height/4*3])
+    automator.clickRandom(actionBtns.backBtn)
+    sleep(3000)
+  } else {
+    debugInfo('未找到百货商城界面')
+  }
 }
 
 function openLottery () {
@@ -474,15 +483,30 @@ function openFriendList () {
     let minBtnY = config.device_height / 4 * 3
     let maxBtnY = config.device_height / 4
     
+    // 预处理：获取第一屏小店按钮，确定滑动距离
+    debugInfo('开始确定滑动距离')
+    let screen = commonFunctions.captureScreen()
+    let returnGiftBtns = localOcrUtil.recognizeWithBounds(screen, region, '^小店$')
+    if (returnGiftBtns && returnGiftBtns.length > 0) {
+      debugInfo(['找到{}个小店按钮', returnGiftBtns.length])
+      returnGiftBtns.forEach(btn => {
+        let y = btn.bounds.centerY()
+        minBtnY = Math.min(y, minBtnY)
+        maxBtnY = Math.max(y, maxBtnY)
+      })
+      if (minBtnY==maxBtnY) {
+        minBtnY = config.device_height / 4 + 100
+        maxBtnY = config.device_height / 4 * 3 - 100
+      }
+      debugInfo(['滑动定位：{} - {}', minBtnY, maxBtnY])
+    }
+
     // 处理赠送按钮的函数
     let processGiftBtn = function(giftBtn, isReturnGift) {
       if (getCount >= 10) return
       
       debugInfo(['OCR找到了{}按钮：{}', isReturnGift ? '回赠' : '小店', giftBtn.label])
       WarningFloaty.addRectangle(giftBtn.label, boundsToRegion(giftBtn.bounds))
-      let y = giftBtn.bounds.centerY()
-      minBtnY = Math.min(y, minBtnY)
-      maxBtnY = Math.max(y, maxBtnY)
       
       if (!isReturnGift) {
         // 小店按钮需要偏移到赠送按钮位置
@@ -493,11 +517,13 @@ function openFriendList () {
       
       automator.clickRandom(wrapOcrPointWithBounds(giftBtn.bounds))
       sleep(2000)
-      captureAndCheckByOcr('^确认赠送$','确认赠送按钮',null,null,true,1)
-      sleep(2000)
-      captureAndCheckByOcr('^领取$', '领取按钮',null,null,true,1)
-      sleep(2000)
-      getCount++
+      if (captureAndCheckByOcr('^确认赠送$','确认赠送按钮',null,null,true,1)) {
+        sleep(2000)
+        if (captureAndCheckByOcr('^领取$', '领取按钮',null,null,true,1)) {
+          sleep(2000)
+          getCount++
+        }
+      }
       WarningFloaty.clearAll()
     }
 
@@ -514,7 +540,7 @@ function openFriendList () {
       if (getCount >= 10) break
       
       //滑动到下一屏继续寻找
-      automator.gestureDown(maxBtnY, minBtnY, 2000)
+      automator.gestureDown(maxBtnY, minBtnY, 3000)
       sleep(1000)
       repeat++
     }
@@ -524,14 +550,12 @@ function openFriendList () {
       debugInfo('开始处理小店按钮')
       // 回到顶部
       for (let i = 0; i < repeat; i++) {
-        automator.gestureUp(region[1]+100, region[1]+region[3]-200)
+        automator.gestureUp(minBtnY, maxBtnY, 3000)
         sleep(1000)
       }
       
       // 重置计数和坐标
       repeat = 0
-      minBtnY = config.device_height / 4 * 3
-      maxBtnY = config.device_height / 4
 
       // 第二阶段：处理小店按钮
       while (repeat < 7 && getCount < 10) {
@@ -548,7 +572,7 @@ function openFriendList () {
         if (getCount >= 10) break
         
         //滑动到下一屏继续寻找
-        automator.gestureDown(maxBtnY, minBtnY, 2000)
+        automator.gestureDown(maxBtnY, minBtnY, 3000)
         sleep(1000)
         repeat++
       }
@@ -632,6 +656,12 @@ function exec () {
     //解锁宝箱
     unlockBox()
 
+    //打开补充体力界面并并领取
+    openGetStrengthAndCoin()
+
+    //解锁宝箱
+    unlockBox()
+
     //打开侧边栏
     if (!openSideBar()) {
       debugInfo('未找到侧边栏按钮，5分钟后再试')
@@ -655,12 +685,6 @@ function exec () {
 
     //关闭侧边栏
     automator.clickPointRandom(config.device_width/2, 200)
-
-    //解锁宝箱
-    unlockBox()
-
-    //打开补充体力界面并并领取
-    openGetStrengthAndCoin()
 
     //解锁宝箱
     unlockBox()

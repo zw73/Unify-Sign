@@ -51,7 +51,7 @@ function CreditRunner () {
       }
       warnInfo(['检测到未能进入会员积分界面，重新进入'])
       commonFunctions.minimize()
-      return this.openCreditPage(tryTime++)
+      return this.openCreditPage(++tryTime)
     }
     return true
   }

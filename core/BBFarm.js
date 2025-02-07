@@ -344,7 +344,7 @@ function SignRunner () {
       LogFloaty.pushWarningLog('未找到限时挑战按钮')
       challengeDone = true
     }
-    while (challengeBtn) {
+    while (challengeBtn && !challengeDone) {
       if (!this.checkIsInAlipayFarm()) {
         LogFloaty.pushWarningLog('不在农场主界面，，重新启动')
         return false
@@ -356,69 +356,100 @@ function SignRunner () {
 
       //查找领奖按钮并点击
       let doneCount = 0
-      let challengeTitles = widgetUtils.widgetGetAll('^挑战\\d$',2000)
+      let challengeTitles = widgetUtils.widgetGetAll('挑战\\d[， ].*',2000)
       if (challengeTitles && challengeTitles.length > 0) {
         challengeTitles.forEach(title => {
-          debugInfo('挑战阶段：'+title.text())
-          let parentView = title.parent()
-          if (parentView&&parentView.childCount()>3){
-            let prizeBtn = parentView.child(3)
-            if (prizeBtn&&prizeBtn.childCount()>0) {
-              if (prizeBtn.child(0).text().indexOf('已完成')>=0) {
-                debugInfo('挑战任务已完成：'+title.text())
+          let titleText = title.text()
+          // 解析挑战阶段信息
+          let stageMatch = titleText.match(/(挑战\d)/)
+          let stage = stageMatch ? stageMatch[1] : '未知'
+          debugInfo('挑战阶段：'+stage)
+          
+          // 解析任务状态
+          if (titleText.indexOf('已完成') >= 0) {
+            debugInfo(`${stage}任务已完成`)
+            doneCount++
+            return
+          } else if (titleText.indexOf('进行中') >= 0) {
+            debugInfo(`${stage}任务进行中`)
+            return
+          } else if (titleText.indexOf('可领奖') >= 0) {
+            debugInfo(`${stage}任务未开始`)
+            return
+          }
+          
+          let btnBounds = title.bounds()
+          let btnRegion = [btnBounds.left,btnBounds.top,btnBounds.width(),btnBounds.height()]
+          if (this.captureAndCheckByOcr('^领取$', '领取按钮', btnRegion, false, false, 1)) {
+            automator.clickRandom(title)
+            sleep(2000)
+            let confirmTitle = widgetUtils.widgetGetOne('^恭喜获得.*肥$',2000)
+            if (confirmTitle) {
+              let confirmBtn = confirmTitle.parent().parent().child(1)
+              if (confirmBtn) {
+                automator.clickRandom(confirmBtn)
+                sleep(2000)
                 doneCount++
-                return
-              } else if (prizeBtn.child(0).text().indexOf('进行中')>=0) {
-                debugInfo('挑战任务进行中：'+title.text())
-                return
-              }
-            } else {
-              debugInfo('挑战状态：'+prizeBtn.text())
-            }
-
-            let btnBounds = prizeBtn.bounds()
-            let btnRegion = [btnBounds.left,btnBounds.top,btnBounds.width(),btnBounds.height()]
-            if (this.captureAndCheckByOcr('^领取$', '领取按钮', btnRegion, false, false, 1)) {
-              automator.clickRandom(prizeBtn)
-              sleep(2000)
-              let confirmTitle = widgetUtils.widgetGetOne('^恭喜获得.*肥$',2000)
-              if (confirmTitle) {
-                let confirmBtn = confirmTitle.parent().parent().child(1)
-                if (confirmBtn) {
-                  automator.clickRandom(confirmBtn)
-                  sleep(2000)
-                }
               }
             }
           }
         })
-      }
 
-      //查找挑战任务按钮并点击
-      let actionBtns = widgetUtils.widgetGetAll('^按钮$',2000)
-      if (actionBtns && actionBtns.length > 0) {
-        let i = 0
-        for (i = 0; i < actionBtns.length; i++) {
-          let btn = actionBtns[i]
-          let parentView = btn.parent().parent()
-          let action = parentView.child(1).child(0).text()
-          let doneTime = parentView.child(1).child(3).text()
-          let needTime = parentView.child(1).child(5).text()
-          debugInfo('挑战任务：'+action+' 已完成：'+doneTime+'/'+needTime)
-          
-          if (doneTime!=needTime) {
-            if (action.indexOf('快手')>=0) {
-              let currentRunning = commonFunctions.myCurrentPackage()
-              automator.clickRandom(btn)
-              sleep(1000)
-              LogFloaty.pushLog('等待进入 '+action)
-              let waitCount = 50
-              while (currentRunning == commonFunctions.myCurrentPackage() && waitCount-- > 0) {
-                sleep(100)
-              }
-              if (currentRunning != commonFunctions.myCurrentPackage()) {
-                LogFloaty.pushLog(action+' 等待倒计时结束')
-                let limit = timeout
+        //查找挑战任务按钮并点击
+        let actionBtns = widgetUtils.widgetGetAll('^去完成$',2000)
+        if (actionBtns && actionBtns.length > 0) {
+          let i = 0
+          for (i = 0; i < actionBtns.length; i++) {
+            let btn = actionBtns[i]
+            let parentView = btn.parent().parent()
+            let action = parentView.child(1).child(0).text()
+            let doneTime = parentView.child(1).child(3).text()
+            let needTime = parentView.child(1).child(5).text()
+            debugInfo('挑战任务：'+action+' 已完成：'+doneTime+'/'+needTime)
+            
+            if (doneTime!=needTime) {
+              if (action.indexOf('快手')>=0) {
+                let currentRunning = commonFunctions.myCurrentPackage()
+                // automator.clickRandom(btn)
+                btn.click()
+                sleep(1000)
+                LogFloaty.pushLog('等待进入 '+action)
+                let waitCount = 50
+                while (currentRunning == commonFunctions.myCurrentPackage() && waitCount-- > 0) {
+                  sleep(100)
+                }
+                if (currentRunning != commonFunctions.myCurrentPackage()) {
+                  LogFloaty.pushLog(action+' 等待倒计时结束')
+                  let limit = 10
+                  while (limit-- > 0) {
+                    sleep(1000)
+                    LogFloaty.replaceLastLog(action+' 等待倒计时结束 剩余：' + limit + 's')
+                    if (limit % 2 == 0) {
+                      automator.randomScrollDown()
+                    }
+                  }
+    
+                  commonFunctions.minimize()
+                  sleep(1000)
+                  if (currentRunning != commonFunctions.myCurrentPackage()) {
+                    app.launch(currentRunning);
+                    sleep(3000)
+                  }
+                } else {
+                  LogFloaty.pushLog('进入失败，返回')
+                }
+                automator.back()
+                sleep(1000)
+              } else if (action.indexOf('施肥')>=0) {
+                // automator.clickRandom(btn)
+                btn.click()
+                sleep(1000)
+                doFertilizeOnce()              
+              } else if (action.indexOf('逛好物')>=0) {
+                // automator.clickRandom(btn)
+                btn.click()
+                sleep(1000)
+                let limit = 15
                 while (limit-- > 0) {
                   sleep(1000)
                   LogFloaty.replaceLastLog(action+' 等待倒计时结束 剩余：' + limit + 's')
@@ -426,56 +457,45 @@ function SignRunner () {
                     automator.randomScrollDown()
                   }
                 }
-  
-                commonFunctions.minimize()
-                sleep(1000)
-                if (currentRunning != commonFunctions.myCurrentPackage()) {
-                  app.launch(currentRunning);
-                  sleep(3000)
+                automator.back()
+                sleep(2000) 
+              } else if (action.indexOf('首页')>=0) {
+                // automator.clickRandom(btn)
+                btn.click()
+                sleep(3000)
+                let farmBtn = widgetUtils.widgetGetOne('^芭芭农场$', 2000, null, null, m=>m.className("android.widget.TextView"))
+                if (farmBtn) {
+                  automator.clickRandom(farmBtn)
+                  sleep(2000)
                 }
-              } else {
-                LogFloaty.pushLog('进入失败，返回')
+              } else if (action.indexOf('游戏')>=0) {
+                continue
               }
-              automator.back()
-              sleep(1000)
-            } else if (action.indexOf('施肥')>=0) {
-              automator.clickRandom(btn)
-              sleep(1000)
-              doFertilizeOnce()              
-            } else if (action.indexOf('逛好物')>=0) {
-              automator.clickRandom(btn)
-              sleep(1000)
-              let limit = 15
-              while (limit-- > 0) {
-                sleep(1000)
-                LogFloaty.replaceLastLog(action+' 等待倒计时结束 剩余：' + limit + 's')
-                if (limit % 2 == 0) {
-                  automator.randomScrollDown()
-                }
-              }
-              automator.back()
-              sleep(2000) 
-            } else if (action.indexOf('首页')>=0) {
-              automator.clickRandom(btn)
-              sleep(3000)
-              let farmBtn = widgetUtils.widgetGetOne('^芭芭农场$', 2000, null, null, m=>m.className("android.widget.TextView"))
-              if (farmBtn) {
-                automator.clickRandom(farmBtn)
+              break
+            }
+
+            //检查是否有“已完成所有挑战”文字控件
+            let descText = widgetUtils.widgetGetOne('^已完成所有挑战$', 3000)
+            if (descText && descText.parent() && descText.parent().parent()) {
+              challengeDone = true
+              let closeBtn = descText.parent().parent().child(1)
+              if (closeBtn) {
+                closeBtn.click()
                 sleep(2000)
               }
-            } else if (action.indexOf('游戏')>=0) {
-              continue
+              break
             }
-            break
           }
+          doneCount++
         }
+
         //检查已完成挑战数量，等于二则退出
-        if (i>=actionBtns.length&&doneCount>=2) {
+        if (doneCount>=3 || challengeDone) {
           debugInfo('已完成挑战任务')
           challengeDone = true
           //检查是否尚未关闭任务窗口，是则关闭
-          let descText = widgetUtils.widgetGetOne('^距结束仅剩$', 3000)
-          if (descText) {
+          let descText = widgetUtils.widgetGetOne('^距结束仅剩|恭喜完成所有挑战$', 3000)
+          if (descText && descText.parent() && descText.parent().parent()) {
             let closeBtn = descText.parent().parent().child(0)
             if (closeBtn) {
               automator.clickRandom(closeBtn)
@@ -546,29 +566,29 @@ function SignRunner () {
 
     let taskInfos = [
       {btnRegex:'去逛逛', tasks:[
-        {taskType:'browse',titleRegex:'.*逛好物最高得1000肥料.*\\d+/\\d+.*',timeout:30,needScroll:true},
-        {taskType:'browse',titleRegex:'.*逛一逛支付宝会员.*\\d+/\\d+.*',timeout:3,needScroll:false},
-        {taskType:'app',titleRegex:'.*逛逛淘宝芭芭农场.*\\d+/\\d+.*',timeout:15,needScroll:false},
-        {taskType:'app',titleRegex:'.*去天猫攒福气兑红包.*\\d+/\\d+.*',timeout:15,needScroll:false},
+        {taskType:'browse',titleRegex:'.*逛好物最高得1000肥料.*当前进度\\d+，总进度\\d+.*',timeout:30,needScroll:true},
+        {taskType:'browse',titleRegex:'.*逛一逛支付宝会员.*当前进度\\d+，总进度\\d+.*',timeout:3,needScroll:false},
+        {taskType:'app',titleRegex:'.*逛逛淘宝芭芭农场.*当前进度\\d+，总进度\\d+.*',timeout:15,needScroll:false},
+        {taskType:'app',titleRegex:'.*去天猫攒福气兑红包.*当前进度\\d+，总进度\\d+.*',timeout:15,needScroll:false},
       ]},
       {btnRegex:'捉小鸡', tasks:[
         {taskType:'doCatchChicks',titleRegex:'.*一键捉小鸡赚肥料'},
       ]},
       {btnRegex:'去完成', tasks:[
-        {taskType:'doBrowseAndCollect',titleRegex:'.*逛好物最高得2000肥料.*\\d+/\\d+.*'},
-        {taskType:'browse',titleRegex:'.*逛好物.*得1000肥料.*\\d+/\\d+.*',timeout:30,needScroll:true},
-        {taskType:'browse',titleRegex:'.*逛一逛得1500肥料.*\\d+/\\d+.*',timeout:15,needScroll:true},
-        {taskType:'browse',titleRegex:'.*(逛|看)精选商品.*\\d+/\\d+.*',timeout:15,needScroll:true},
-        {taskType:'browse',titleRegex:'.*逛.*好货得肥料.*\\d+/\\d+.*',timeout:15,needScroll:true},
-        {taskType:'browse',titleRegex:'.*逛金秋出游好去处.*\\d+/\\d+.*',timeout:15,needScroll:true},
-        {taskType:'browse',titleRegex:'.*逛一逛支付宝运动.*\\d+/\\d+.*',timeout:3,needScroll:false},
-        {taskType:'app',titleRegex:'.*逛一逛快手.*\\d+/\\d+.*',timeout:10,needScroll:false},
-        {taskType:'app',titleRegex:'.*去点淘赚元宝提现.*\\d+/\\d+.*',timeout:15,needScroll:false},
-        {taskType:'app',titleRegex:'.*逛淘宝看视频领现金.*\\d+/\\d+.*',timeout:15,needScroll:false},
-        {taskType:'app',titleRegex:'.*逛饿了么.*\\d+/\\d+.*',timeout:15,needScroll:false},
-        {taskType:'app',titleRegex:'.*逛一逛抖音极速版.*\\d+/\\d+.*',timeout:3,needScroll:false},
-        {taskType:'app',titleRegex:'.*去体验七猫小说.*\\d+/\\d+.*',timeout:3,needScroll:false},
-        {taskType:'app',titleRegex:'.*逛一逛头条极速版.*\\d+/\\d+.*',timeout:3,needScroll:false},
+        {taskType:'doBrowseAndCollect',titleRegex:'.*逛好物最高得2000肥料.*当前进度\\d+，总进度\\d+.*'},
+        {taskType:'browse',titleRegex:'.*逛好物.*得1000肥料.*当前进度\\d+，总进度\\d+.*',timeout:30,needScroll:true},
+        {taskType:'browse',titleRegex:'.*逛一逛得1500肥料.*当前进度\\d+，总进度\\d+.*',timeout:15,needScroll:true},
+        {taskType:'browse',titleRegex:'.*(逛|看)精选商品.*当前进度\\d+，总进度\\d+.*',timeout:15,needScroll:true},
+        {taskType:'browse',titleRegex:'.*逛.*好货得肥料.*当前进度\\d+，总进度\\d+.*',timeout:15,needScroll:true},
+        {taskType:'browse',titleRegex:'.*逛金秋出游好去处.*当前进度\\d+，总进度\\d+.*',timeout:15,needScroll:true},
+        {taskType:'browse',titleRegex:'.*逛一逛支付宝运动.*当前进度\\d+，总进度\\d+.*',timeout:3,needScroll:false},
+        {taskType:'app',titleRegex:'.*逛一逛快手.*当前进度\\d+，总进度\\d+.*',timeout:10,needScroll:false},
+        {taskType:'app',titleRegex:'.*去点淘赚元宝提现.*当前进度\\d+，总进度\\d+.*',timeout:15,needScroll:false},
+        {taskType:'app',titleRegex:'.*逛淘宝看视频领现金.*当前进度\\d+，总进度\\d+.*',timeout:15,needScroll:false},
+        {taskType:'app',titleRegex:'.*逛饿了么.*当前进度\\d+，总进度\\d+.*',timeout:15,needScroll:false},
+        {taskType:'app',titleRegex:'.*逛一逛抖音极速版.*当前进度\\d+，总进度\\d+.*',timeout:3,needScroll:false},
+        {taskType:'app',titleRegex:'.*去体验七猫小说.*当前进度\\d+，总进度\\d+.*',timeout:3,needScroll:false},
+        {taskType:'app',titleRegex:'.*逛一逛头条极速版.*当前进度\\d+，总进度\\d+.*',timeout:3,needScroll:false},
       ]},
     ]
   
@@ -670,7 +690,7 @@ function SignRunner () {
     let execResult = this.openTaobaoFarm()
     if (execResult) {
       if (!this.captureAndCheckByImg(bb_farm_config.collect_btn_taobao, '每日签到', null, true, 1)) {
-        this.captureAndCheckByOcr('点击领取', '每日签到', [config.device_width/2,config.device_height/2,config.device_width/2,config.device_height/2], null, true, 1)
+        this.captureAndCheckByOcr('点击领取', '每日签到', [config.device_width/2,config.device_height/2,config.device_width/2,config.device_height/2], null, true)
       }
   
       execResult = execResult && this.collectTaobaoTask()
@@ -703,7 +723,7 @@ function SignRunner () {
       let closeBtn = null
       if (title) {
         closeBtn = title.parent().child(1)
-        questionRoot = title.parent().child(2)
+        questionRoot = title.parent().child(2).child(0)
       }
       result = AiUtil.getQuestionInfo(ai_type, key, questionRoot, 'tbfarm')
       if (result) {
@@ -778,13 +798,16 @@ function SignRunner () {
       //进入好友林界面
       automator.clickRandom(friendEntry)
       sleep(2000)
-      let collectBtns = widgetUtils.widgetGetAll('^肥料 \\d+$',3000)
+      let collectBtns = widgetUtils.widgetGetAll('肥料.*\\d+',5000)
       if (collectBtns && collectBtns.length > 0) {
         //领取好友林奖励
         collectBtns.forEach(function (collectBtn) {
+          debugInfo('领取好友林奖励：' + collectBtn.text())
           collectBtn.click()
           sleep(1000)
         })
+      } else {
+        debugInfo('没有找到好友林奖励')
       }
       automator.back()
       sleep(1000)
@@ -917,7 +940,7 @@ function SignRunner () {
         //     去微博参与开学活动：直接返回
         {taskType:'app',titleRegex:'去微博.*\\d+/\\d+.*',timeout:3,needScroll:false},
         //     去菜鸟裹酱每天领PS5：直接返回
-        // {taskType:'app',titleRegex:'去菜鸟.*\\d+/\\d+.*',timeout:3,needScroll:false},
+        {taskType:'app',titleRegex:'去菜鸟.*\\d+/\\d+.*',timeout:3,needScroll:false},
       ]},
     ]
   

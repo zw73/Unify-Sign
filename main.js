@@ -22,6 +22,7 @@ config.not_lingering_float_window = true
 commonFunctions.delayIfBatteryLow()
 logInfo('======加入任务队列，并关闭重复运行的脚本=======')
 runningQueueDispatcher.addRunningTask()
+commonFunctions.killDuplicateScript()
 let callStateListener = !config.is_pro && config.enable_call_state_control ? singletonRequire('CallStateListener') : { exitIfNotIdle: () => { } }
 // 用于代理图片资源，请勿移除 否则需要手动添加recycle代码
 let resourceMonitor = require('./lib/ResourceMonitor.js')(runtime, this)
